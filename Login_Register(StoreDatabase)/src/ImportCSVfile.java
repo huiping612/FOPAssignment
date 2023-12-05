@@ -4,7 +4,7 @@ import java.io.IOException;
 
 public class ImportCSVfile {
     public static void main(String[] args) {
-        String filePath = "C:\\Users\\User\\Downloads\\merged_data.csv"; // Replace with your file path
+        String filePath = "..\\..\\..\\Downloads\\merged_data.csv"; // Replace with your file path
 
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
