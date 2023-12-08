@@ -1,0 +1,9 @@
+Application\PriceComparison$SearchException.class
+Application\PriceComparison.class
+Application\PriceTrend$SearchException.class
+Model\Premise.class
+Model\PriceCatcher.class
+Application\PriceTrend.class
+Exception\SearchException.class
+Model\Item.class
+Model\PremiseWithPrice.class
