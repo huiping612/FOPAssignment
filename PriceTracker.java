@@ -16,6 +16,15 @@ import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class PriceTracker {
     private static final String JDBC_URL = "jdbc:mysql://localhost:3306/loginandregister";
@@ -23,6 +32,31 @@ public class PriceTracker {
     private static final String DB_PASSWORD = "1234CJY";
     private static final String CSV_FILE_PATH = "D:\\Backup\\Downloads\\Telegram Desktop\\merged_data.csv"; // Replace with your CSV file path
 
+    //Q5b_5c
+    private final Map<String, Integer> itemsInCart;
+    private static final String ITEM_HEADER = "item";
+    private static final String PRICE_HEADER = "price";
+    private static final String ADDRESS_HEADER = "address";
+    private static final String DISTRICT_HEADER = "district";
+
+    // Instance variable to store the district
+    private String district;
+
+    // Constants for file path and CSV headers
+    private static final String FILE_PATH = "C:\\Users\\User\\Dropbox\\My PC (LAPTOP-SPVCRBCA)\\Documents\\NetBeansProjects\\PriceTracker\\src\\main\\java\\Q5b_5c\\merged_data.csv";
+
+    // Variable to store filtered data based on the district
+    private List<ProductInfo> filteredData;
+    private List<ProductInfo> thatItem;
+
+    private static final Scanner scanner = new Scanner(System.in);
+    
+    public PriceTracker() {
+        this.itemsInCart = new HashMap<>();
+        this.filteredData = new ArrayList<>();
+    }
+
+    
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
@@ -109,7 +143,8 @@ public class PriceTracker {
                     // Search for a product logic
                     break;
                 case 4:
-                    // View Shopping Cart logic
+                    PriceTracker cart = new PriceTracker();
+                    cart.viewCart();
                     break;
                 case 5:
                     modifyAccountSettings(scanner);
@@ -346,7 +381,7 @@ public class PriceTracker {
                             viewPriceTrend(selectedItem);
                             break;
                         case 5:
-                            addToShoppingCart(selectedItem);
+                            addToShoppingCart();
                             break;
                         case 6:
                             System.out.println("Returning to the subcategory menu...");
@@ -467,9 +502,302 @@ public class PriceTracker {
         // Implement logic to display price trend for the item
     }
 
-    private static void addToShoppingCart(String[] item) {
-        // Implement logic to add the item to the shopping cart
+  }
+    
+    //Q5b_5c
+    public static void addToShoppingCart() {
+        PriceTracker cart = new PriceTracker();
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter the district: ");
+        String district = sc.nextLine();
+
+        // Set the district in the instance variable
+        cart.setDistrict(district);
+
+        // Filter data based on the district
+        cart.filterData();
+
+        System.out.print("Selected ");
+        String itemKeyIn = sc.nextLine().toUpperCase();
+            
+        //Add item into shopping cart
+        cart.addItem(itemKeyIn);         
+    }
+    
+    // Method to set the district
+    public void setDistrict(String district) {
+        this.district = district;
     }
 
+    // Method to filter and store data based on the district
+    private void filterData() {
+        try (Reader reader = new FileReader(FILE_PATH);
+             CSVParser csvParser = CSVFormat.DEFAULT.withHeader().parse(reader)) {
+
+            // Iterate through CSV records
+            for (CSVRecord csvRecord : csvParser) {
+                String recordDistrict = csvRecord.get(DISTRICT_HEADER);
+
+                // Check if the record is in the specified district
+                if (district.equalsIgnoreCase(recordDistrict)) {
+                    String item = csvRecord.get(ITEM_HEADER);
+                    double price = Double.parseDouble(csvRecord.get(PRICE_HEADER));
+                    String address = csvRecord.get(ADDRESS_HEADER);
+
+                    filteredData.add(new ProductInfo(item, price, address));
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("An error occurred while reading the file: " + e.getMessage());
+        } catch (NumberFormatException e) {
+            System.err.println("Error parsing a number: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("An unexpected error occurred: " + e.getMessage());
+        }
+    }
+
+    public void addItem(String item) {
+        itemsInCart.merge(item, 1, Integer::sum);
+        System.out.println(item + " is added to the shopping cart.");
+    }
+
+    public List<ProductInfo> filterItem (String itemKeyIn) {
+        List<ProductInfo> thatItem = new ArrayList<>();
+
+        // Use the filtered data to find the cheapest price
+        for (ProductInfo productInfo : filteredData) {
+            if (productInfo.getItem().toUpperCase().contains(itemKeyIn)) {
+                thatItem.add(productInfo);
+            }
+        }
+
+        return thatItem;
+    }
+    
+    
+    public ProductInfo findCheapestPrice(List<ProductInfo> prices) {
+        // Initialize with the first price in the list
+        ProductInfo cheapestPrice = prices.get(0);
+
+        // Iterate through the rest of the prices to find the cheapest
+        for (int i = 1; i < prices.size(); i++) {
+            ProductInfo currentPrice = prices.get(i);
+            if (currentPrice.getPrice() < cheapestPrice.getPrice()) {
+                cheapestPrice = currentPrice;
+            }
+        }
+
+        return cheapestPrice;
+    }
+
+
+    public void viewCart() {
+        if (itemsInCart.isEmpty()) {
+            System.out.println("The shopping cart is empty.");
+            return;
+        }
+
+        int i = 1;
+        System.out.println("Shopping Cart:");
+        System.out.println();
+        System.out.println("1. View cheapest seller for all selected items");
+        System.out.println("2. Find shops to buy items in cart");
+        Scanner sc = new Scanner(System.in);
+        int x = sc.nextInt();
+        
+        switch (x) {
+            case 1:
+                for (Map.Entry<String, Integer> entry : itemsInCart.entrySet()) {
+                    String item = entry.getKey();
+                    int quantity = entry.getValue();
+                    System.out.println(item + ": Quantity = " + quantity);
+                    
+                    List<ProductInfo> filteredPrices = filterItem(item);
+                    ProductInfo cheapestPrice = findCheapestPrice(filteredPrices);
+                    if (cheapestPrice != null) {
+                        System.out.println("Cheapest Seller for " + cheapestPrice.getItem() + ":");
+                        System.out.println("Retailer " + i);
+                        System.out.println("Price: RM" + cheapestPrice.getPrice());
+                        System.out.println("Address: " + cheapestPrice.getAddress());
+                        System.out.println();
+                        i++;
+                    } else {
+                        System.out.println("No matching prices found for the specified item.");
+                    }
+                }   
+                break;
+                
+            case 2:
+                findShopsToBuyItems();
+                break;
+                
+            default:
+                System.out.println("Invalid choice. Please enter a valid option.");
+                break;
+        }
+        
+    }
+    
+    public void findShopsToBuyItems() {
+        // Map to store the count of items at each address
+        Map<String, Integer> itemCountByAddress = new HashMap<>();
+
+        // Iterate through items in the cart
+        for (Map.Entry<String, Integer> entry : itemsInCart.entrySet()) {
+            String item = entry.getKey();
+
+            // Find the items that can be bought at each address
+            Map<String, List<ProductInfo>> itemsByAddress = findItemsByAddress(item);
+
+            // Update the count of items at each address
+            updateItemCountByAddress(itemCountByAddress, itemsByAddress, entry.getValue());
+        }
+
+        // Find the recommended addresses
+        List<String> recommendedAddresses = findRecommendedAddresses(itemCountByAddress);
+
+        // Display the recommended addresses and items
+        displayRecommendedAddresses(recommendedAddresses);
+    }
+
+    private Map<String, List<ProductInfo>> findItemsByAddress(String item) {
+        // Map to store the items that can be bought at each address
+        Map<String, List<ProductInfo>> itemsByAddress = new HashMap<>();
+
+        // Iterate through the filtered data
+        for (ProductInfo productInfo : filteredData) {
+            if (productInfo.getItem().equalsIgnoreCase(item)) {
+                // Add the item to the map based on the address
+                itemsByAddress.computeIfAbsent(productInfo.getAddress(), k -> new ArrayList<>()).add(productInfo);
+            }
+        }
+
+        return itemsByAddress;
+    }
+
+    private void updateItemCountByAddress(Map<String, Integer> itemCountByAddress, Map<String, List<ProductInfo>> itemsByAddress, int quantity) {
+        // Iterate through the map entries
+        for (Map.Entry<String, List<ProductInfo>> entry : itemsByAddress.entrySet()) {
+            String address = entry.getKey();
+            List<ProductInfo> items = entry.getValue();
+
+            // Update the count based on the quantity and the number of items available
+            itemCountByAddress.merge(address, Math.min(quantity, items.size()), Integer::sum);
+        }
+    }
+
+    private List<String> findRecommendedAddresses(Map<String, Integer> itemCountByAddress) {
+        // Sort the addresses by the count of items in descending order
+        return itemCountByAddress.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
+
+    private void displayRecommendedAddresses(List<String> recommendedAddresses) {
+        int retailerNumber = 1;
+
+        // Iterate through recommended addresses
+        for (String address : recommendedAddresses) {
+            System.out.println(); // Add a newline for separation
+            System.out.println("Retailer " + retailerNumber + ": ");
+
+            // Display the items that can be bought
+            displayItemsByAddress(address);
+            retailerNumber++;
+
+            // Check if all items are available, and exit the loop if true
+            if (allItemsAvailable(address)) {
+                break;
+            }
+        }
+    }
+
+   private void displayItemsByAddress(String address) {
+        // Filter items based on the specified address and items in the cart
+        Map<String, List<ProductInfo>> itemsByAddressMap = itemsInCart.keySet().stream()
+                .flatMap(item -> filteredData.stream()
+                        .filter(productInfo -> productInfo.getAddress().equalsIgnoreCase(address) &&
+                                productInfo.getItem().equalsIgnoreCase(item)))
+                .collect(Collectors.groupingBy(ProductInfo::getItem));
+
+        // Display items
+        System.out.println("Address: " + address);
+
+        Set<String> foundItems = new HashSet<>();  // Set to keep track of found items
+        boolean itemsFound = false;
+
+        int i=1;
+        System.out.println("Items can be found:");
+        for (Map.Entry<String, List<ProductInfo>> entry : itemsByAddressMap.entrySet()) {
+            String itemName = entry.getKey();
+            List<ProductInfo> items = entry.getValue();
+
+            // Check if the item has already been found
+            if (foundItems.contains(itemName)) {
+                continue;  // Skip to the next item
+            }
+
+            double minPrice = items.stream().mapToDouble(ProductInfo::getPrice).min().orElse(0.0);
+
+            System.out.println(i + ". " + itemName + " - RM" + minPrice);
+            i++;
+            itemsFound = true;
+
+            // Add the item to the found set
+            foundItems.add(itemName);
+        }
+
+        if (!itemsFound) {
+            System.out.println("No matching items found for the specified address.");
+        }
+    }
+
+
+
+    private boolean allItemsAvailable(String address) {
+        // Check if all items in the cart are available at the specified address
+        for (Map.Entry<String, Integer> entry : itemsInCart.entrySet()) {
+            String item = entry.getKey();
+            int quantity = entry.getValue();
+
+            long availableItems = filteredData.stream()
+                    .filter(productInfo -> productInfo.getAddress().equalsIgnoreCase(address) &&
+                            productInfo.getItem().equalsIgnoreCase(item))
+                    .count();
+
+            if (availableItems < quantity) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+
+    
+    static class ProductInfo {
+        private final String item;
+        private final double price;
+        private final String address;
+
+        public ProductInfo(String item, double price, String address) {
+            this.item = item;
+            this.price = price;
+            this.address = address;
+        }
+
+        public String getItem() {
+            return item;
+        }
+
+        public double getPrice() {
+            return price;
+        }
+
+        public String getAddress() {
+            return address;
+        }
     }
 }
